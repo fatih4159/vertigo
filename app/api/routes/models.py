@@ -20,7 +20,9 @@ def _get_ollama() -> OllamaClient:
     return OllamaClient(
         base_url=settings.OLLAMA_BASE_URL,
         timeout=settings.OLLAMA_TIMEOUT,
+        connect_timeout=settings.OLLAMA_CONNECT_TIMEOUT,
         max_retries=settings.OLLAMA_MAX_RETRIES,
+        keep_alive=settings.OLLAMA_KEEP_ALIVE,
     )
 
 

@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_DEFAULT_MODEL: str = "qwen2.5-coder:latest"
     OLLAMA_TIMEOUT: int = 120
+    OLLAMA_CONNECT_TIMEOUT: float = 10.0
     OLLAMA_MAX_RETRIES: int = 3
+    OLLAMA_KEEP_ALIVE: str = "5m"
 
     # Agent
     AGENT_MAX_ITERATIONS: int = 1000

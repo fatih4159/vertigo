@@ -198,7 +198,9 @@ class AgentFactory:
         ollama_client = OllamaClient(
             base_url=config.get("ollama_base_url", settings.OLLAMA_BASE_URL),
             timeout=config.get("ollama_timeout", settings.OLLAMA_TIMEOUT),
+            connect_timeout=config.get("ollama_connect_timeout", settings.OLLAMA_CONNECT_TIMEOUT),
             max_retries=config.get("ollama_max_retries", settings.OLLAMA_MAX_RETRIES),
+            keep_alive=config.get("ollama_keep_alive", settings.OLLAMA_KEEP_ALIVE),
         )
 
         memory_manager = MemoryManager(agent_id=agent_id, session=db_session)
