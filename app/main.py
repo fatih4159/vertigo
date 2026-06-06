@@ -4,9 +4,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.config.settings import settings
@@ -38,7 +42,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Database ready")
 
     # Ensure workspace directories exist
-    import os
     for d in settings.ALLOWED_DIRECTORIES:
         os.makedirs(d, exist_ok=True)
     os.makedirs(settings.WORKSPACE_ROOT, exist_ok=True)
@@ -121,15 +124,26 @@ def create_app() -> FastAPI:
             "debug": settings.DEBUG,
         }
 
-    @app.get("/", tags=["system"])
-    async def root() -> dict:
-        return {
-            "name": settings.APP_NAME,
-            "version": settings.APP_VERSION,
-            "docs": f"{settings.API_PREFIX}/docs",
-            "health": "/health",
-            "websocket": "/ws/events",
-        }
+    # Serve built React UI (production / nixpacks deploy)
+    ui_dist = Path(__file__).parent.parent / "ui" / "dist"
+    if ui_dist.is_dir():
+        app.mount("/assets", StaticFiles(directory=ui_dist / "assets"), name="assets")
+
+        @app.get("/", include_in_schema=False)
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str = "") -> FileResponse:
+            # Let API and WS routes through — only catch unmatched paths
+            return FileResponse(ui_dist / "index.html")
+    else:
+        @app.get("/", tags=["system"])
+        async def root() -> dict:
+            return {
+                "name": settings.APP_NAME,
+                "version": settings.APP_VERSION,
+                "docs": f"{settings.API_PREFIX}/docs",
+                "health": "/health",
+                "websocket": "/ws/events",
+            }
 
     return app
 
