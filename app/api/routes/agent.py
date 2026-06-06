@@ -1,0 +1,332 @@
+"""Agent REST API routes."""
+from __future__ import annotations
+
+import asyncio
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.session import get_db
+from app.agent.factory import AgentFactory
+from app.agent.runner import RunMode
+from app.config.settings import settings
+from app.core.exceptions import AgentNotFoundError, AgentStateError
+from app.storage.repositories import AgentRepository, IterationRepository, AgentEventRepository
+from app.database.models import Agent
+
+router = APIRouter(prefix="/agents", tags=["agents"])
+
+# In-memory registry of running AgentRunner instances
+_running_agents: Dict[str, Any] = {}
+
+
+# ---------------------------------------------------------------------------
+# Request / Response models
+# ---------------------------------------------------------------------------
+
+class CreateAgentRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    masterprompt: str = Field(..., min_length=10)
+    model_name: str = Field(default=settings.OLLAMA_DEFAULT_MODEL)
+    project_id: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class AgentResponse(BaseModel):
+    id: str
+    name: str
+    masterprompt: str
+    state: str
+    model_name: str
+    config_json: Optional[Dict] = None
+    project_id: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class StartAgentRequest(BaseModel):
+    mode: RunMode = RunMode.RUN_FOREVER
+    n_iterations: Optional[int] = None
+    goal: Optional[str] = None
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+
+
+class ChatResponse(BaseModel):
+    agent_id: str
+    message: str
+    response: str
+
+
+def _agent_to_dict(agent: Agent) -> Dict[str, Any]:
+    return {
+        "id": agent.id,
+        "name": agent.name,
+        "masterprompt": agent.masterprompt,
+        "state": agent.state,
+        "model_name": agent.model_name,
+        "config_json": agent.config_json,
+        "project_id": agent.project_id,
+        "created_at": agent.created_at.isoformat(),
+        "updated_at": agent.updated_at.isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_agent(
+    body: CreateAgentRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    repo = AgentRepository(db)
+    agent = await repo.create(
+        name=body.name,
+        masterprompt=body.masterprompt,
+        model_name=body.model_name,
+        config_json=body.config or {},
+        project_id=body.project_id,
+    )
+    await db.commit()
+    return _agent_to_dict(agent)
+
+
+@router.get("")
+async def list_agents(
+    state: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+) -> List[Dict[str, Any]]:
+    repo = AgentRepository(db)
+    agents = await repo.list(state=state, limit=limit, offset=offset)
+    return [_agent_to_dict(a) for a in agents]
+
+
+@router.get("/{agent_id}")
+async def get_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    repo = AgentRepository(db)
+    try:
+        agent = await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    result = _agent_to_dict(agent)
+    # Augment with live runner state if running
+    if agent_id in _running_agents:
+        runner = _running_agents[agent_id]
+        result["live_status"] = runner.get_status()
+    return result
+
+
+@router.post("/{agent_id}/start")
+async def start_agent(
+    agent_id: str,
+    body: StartAgentRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    repo = AgentRepository(db)
+    try:
+        agent = await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+
+    if agent_id in _running_agents:
+        runner = _running_agents[agent_id]
+        if runner.current_state.value == "RUNNING":
+            raise HTTPException(status_code=409, detail="Agent is already running")
+
+    runner = await AgentFactory.create(
+        agent_id=agent_id,
+        masterprompt=agent.masterprompt,
+        model=agent.model_name,
+        db_session=db,
+        extra_config=agent.config_json or {},
+    )
+    _running_agents[agent_id] = runner
+
+    async def run_task() -> None:
+        try:
+            await runner.run(mode=body.mode, n_iterations=body.n_iterations, goal=body.goal)
+        finally:
+            _running_agents.pop(agent_id, None)
+            # Update DB state
+            from app.database.session import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                r = AgentRepository(session)
+                await r.update_state(agent_id, "STOPPED")
+                await session.commit()
+
+    background_tasks.add_task(run_task)
+    await repo.update_state(agent_id, "RUNNING")
+    await db.commit()
+
+    return {"agent_id": agent_id, "status": "started", "mode": body.mode}
+
+
+@router.post("/{agent_id}/pause")
+async def pause_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    if agent_id not in _running_agents:
+        raise HTTPException(status_code=404, detail="Agent is not running")
+    runner = _running_agents[agent_id]
+    ok = await runner.pause()
+    if not ok:
+        raise HTTPException(status_code=409, detail="Cannot pause agent in current state")
+    repo = AgentRepository(db)
+    await repo.update_state(agent_id, "PAUSED")
+    await db.commit()
+    return {"agent_id": agent_id, "status": "paused"}
+
+
+@router.post("/{agent_id}/resume")
+async def resume_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    if agent_id not in _running_agents:
+        raise HTTPException(status_code=404, detail="Agent is not running")
+    runner = _running_agents[agent_id]
+    ok = await runner.resume()
+    if not ok:
+        raise HTTPException(status_code=409, detail="Cannot resume agent in current state")
+    repo = AgentRepository(db)
+    await repo.update_state(agent_id, "RUNNING")
+    await db.commit()
+    return {"agent_id": agent_id, "status": "running"}
+
+
+@router.post("/{agent_id}/stop")
+async def stop_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    if agent_id not in _running_agents:
+        raise HTTPException(status_code=404, detail="Agent is not running")
+    runner = _running_agents[agent_id]
+    await runner.stop()
+    _running_agents.pop(agent_id, None)
+    repo = AgentRepository(db)
+    await repo.update_state(agent_id, "STOPPED")
+    await db.commit()
+    return {"agent_id": agent_id, "status": "stopped"}
+
+
+@router.post("/{agent_id}/chat")
+async def chat_with_agent(
+    agent_id: str,
+    body: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ChatResponse:
+    repo = AgentRepository(db)
+    try:
+        agent = await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+
+    if agent_id in _running_agents:
+        runner = _running_agents[agent_id]
+        response = await runner.user_chat(body.message)
+    else:
+        # Agent not running - still answer using Ollama directly
+        from app.integrations.ollama.client import OllamaClient
+        ollama = OllamaClient(base_url=settings.OLLAMA_BASE_URL)
+        messages = [
+            {"role": "system", "content": f"You are {agent.name}. {agent.masterprompt}"},
+            {"role": "user", "content": body.message},
+        ]
+        try:
+            response = await ollama.chat_with_retry(model=agent.model_name, messages=messages)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=f"Ollama error: {exc}")
+        finally:
+            await ollama.close()
+
+    return ChatResponse(agent_id=agent_id, message=body.message, response=response)
+
+
+@router.get("/{agent_id}/iterations")
+async def list_iterations(
+    agent_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+) -> List[Dict[str, Any]]:
+    repo = AgentRepository(db)
+    try:
+        await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+
+    iter_repo = IterationRepository(db)
+    iterations = await iter_repo.list_for_agent(agent_id, limit=limit, offset=offset)
+    return [
+        {
+            "id": it.id,
+            "number": it.number,
+            "goal": it.goal,
+            "status": it.status,
+            "tokens_used": it.tokens_used,
+            "started_at": it.started_at.isoformat(),
+            "finished_at": it.finished_at.isoformat() if it.finished_at else None,
+            "result_json": it.result_json,
+        }
+        for it in iterations
+    ]
+
+
+@router.get("/{agent_id}/events")
+async def list_events(
+    agent_id: str,
+    event_type: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+) -> List[Dict[str, Any]]:
+    repo = AgentRepository(db)
+    try:
+        await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+
+    ev_repo = AgentEventRepository(db)
+    events = await ev_repo.list_for_agent(agent_id, event_type=event_type, limit=limit, offset=offset)
+    return [
+        {
+            "id": ev.id,
+            "event_type": ev.event_type,
+            "data": ev.data_json,
+            "timestamp": ev.timestamp.isoformat(),
+        }
+        for ev in events
+    ]
+
+
+@router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    if agent_id in _running_agents:
+        runner = _running_agents[agent_id]
+        await runner.stop()
+        _running_agents.pop(agent_id, None)
+    repo = AgentRepository(db)
+    deleted = await repo.delete(agent_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    await db.commit()
