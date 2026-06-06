@@ -18,11 +18,15 @@ class OllamaClient:
         self,
         base_url: str = "http://localhost:11434",
         timeout: int = 120,
+        connect_timeout: float = 10.0,
         max_retries: int = 3,
+        keep_alive: str = "5m",
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.connect_timeout = connect_timeout
         self.max_retries = max_retries
+        self.keep_alive = keep_alive
         self._client: Optional[httpx.AsyncClient] = None
 
     # ------------------------------------------------------------------
@@ -33,7 +37,7 @@ class OllamaClient:
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
-                timeout=httpx.Timeout(self.timeout, connect=10.0),
+                timeout=httpx.Timeout(self.timeout, connect=self.connect_timeout),
             )
         return self._client
 
@@ -50,7 +54,7 @@ class OllamaClient:
         """Return True if Ollama is reachable."""
         try:
             client = await self._get_client()
-            resp = await client.get("/api/tags", timeout=5.0)
+            resp = await client.get("/api/tags", timeout=self.connect_timeout)
             return resp.status_code == 200
         except Exception as exc:
             logger.warning(f"Ollama health check failed: {exc}")
@@ -131,6 +135,7 @@ class OllamaClient:
             "model": model,
             "prompt": prompt,
             "stream": stream,
+            "keep_alive": self.keep_alive,
             "options": options or {},
         }
         if system:
@@ -182,6 +187,7 @@ class OllamaClient:
             "model": model,
             "messages": messages,
             "stream": stream,
+            "keep_alive": self.keep_alive,
             "options": options or {},
         }
         if format:

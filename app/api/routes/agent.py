@@ -244,7 +244,13 @@ async def chat_with_agent(
     else:
         # Agent not running - still answer using Ollama directly
         from app.integrations.ollama.client import OllamaClient
-        ollama = OllamaClient(base_url=settings.OLLAMA_BASE_URL)
+        ollama = OllamaClient(
+            base_url=settings.OLLAMA_BASE_URL,
+            timeout=settings.OLLAMA_TIMEOUT,
+            connect_timeout=settings.OLLAMA_CONNECT_TIMEOUT,
+            max_retries=settings.OLLAMA_MAX_RETRIES,
+            keep_alive=settings.OLLAMA_KEEP_ALIVE,
+        )
         messages = [
             {"role": "system", "content": f"You are {agent.name}. {agent.masterprompt}"},
             {"role": "user", "content": body.message},
