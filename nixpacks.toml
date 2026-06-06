@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "nodejs_20", "nodePackages.npm"]
+nixPkgs = ["python311", "nodejs_20", "nodePackages.npm", "nginx"]
 
 [phases.install]
 cmds = [
@@ -14,4 +14,4 @@ cmds = [
 ]
 
 [start]
-cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+cmd = "bash start-prod.sh"
