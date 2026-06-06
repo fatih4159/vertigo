@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+.venv/
+venv/
+env/
+ENV/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Distribution
+*.tar.gz
+*.whl
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic
+alembic/versions/*.py
+!alembic/versions/.gitkeep
+
+# Node / frontend
+ui/node_modules/
+ui/dist/
+ui/.vite/
+ui/.cache/
+ui/coverage/
+
+# Docker
+.dockerignore
+
+# Data directories
+workspace/
+data/
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets/

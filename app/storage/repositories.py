@@ -197,6 +197,38 @@ class MemoryRepository(BaseRepository):
         result = await self._session.execute(stmt)
         return {row[0]: row[1] for row in result.fetchall()}
 
+    async def upsert(
+        self,
+        agent_id: str,
+        memory_type: str,
+        key: str,
+        content: str,
+        metadata_json: Optional[Dict] = None,
+    ) -> "MemoryEntry":
+        stmt = select(MemoryEntry).where(
+            MemoryEntry.agent_id == agent_id,
+            MemoryEntry.key == key,
+        )
+        result = await self._session.execute(stmt)
+        existing = result.scalar_one_or_none()
+        if existing:
+            existing.content = content
+            existing.metadata_json = metadata_json
+            existing.accessed_at = datetime.utcnow()
+            existing.access_count += 1
+            return existing
+        entry = MemoryEntry(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            memory_type=memory_type,
+            key=key,
+            content=content,
+            metadata_json=metadata_json,
+        )
+        self._session.add(entry)
+        await self._session.flush()
+        return entry
+
 
 # ---------------------------------------------------------------------------
 # AgentEvent
@@ -305,6 +337,16 @@ class GeneratedToolRepository(BaseRepository):
         result = await self._session.execute(stmt)
         return result.rowcount > 0
 
+    async def get_by_name(self, name: str) -> Optional[GeneratedTool]:
+        stmt = select(GeneratedTool).where(GeneratedTool.name == name)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update(self, tool_id: str, **kwargs: Any) -> Optional[GeneratedTool]:
+        stmt = update(GeneratedTool).where(GeneratedTool.id == tool_id).values(**kwargs)
+        await self._session.execute(stmt)
+        return await self._session.get(GeneratedTool, tool_id)
+
 
 class GeneratedSkillRepository(BaseRepository):
     async def create(
@@ -329,4 +371,14 @@ class GeneratedSkillRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def get(self, skill_id: str) -> Optional[GeneratedSkill]:
+        return await self._session.get(GeneratedSkill, skill_id)
+
+    async def get_by_name(self, name: str) -> Optional[GeneratedSkill]:
+        stmt = select(GeneratedSkill).where(GeneratedSkill.name == name)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update(self, skill_id: str, **kwargs: Any) -> Optional[GeneratedSkill]:
+        stmt = update(GeneratedSkill).where(GeneratedSkill.id == skill_id).values(**kwargs)
+        await self._session.execute(stmt)
         return await self._session.get(GeneratedSkill, skill_id)
