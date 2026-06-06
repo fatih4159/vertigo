@@ -4,7 +4,7 @@ import { agentsApi } from '../api/agents'
 import type { StartAgentPayload } from '../api/agents'
 
 export function useAgent(agentId: string | null) {
-  const { agents, setAgents, updateAgent } = useAppStore()
+  const { agents, updateAgent } = useAppStore()
   const agent = agentId ? agents.find((a) => a.id === agentId) ?? null : null
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 

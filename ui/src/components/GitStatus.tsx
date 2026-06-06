@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { GitBranch, GitCommit, RefreshCw, AlertCircle } from 'lucide-react'
+import { GitBranch, RefreshCw, AlertCircle } from 'lucide-react'
 import clsx from 'clsx'
 import { apiClient } from '../api/client'
 import type { GitStatus as GitStatusType } from '../types'

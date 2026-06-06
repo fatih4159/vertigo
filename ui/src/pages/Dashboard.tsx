@@ -22,7 +22,7 @@ type Tab = 'overview' | 'models' | 'tools' | 'settings'
 
 export default function Dashboard() {
   const { agents, setAgents, setActiveAgentId, wsEvents } = useAppStore()
-  const { models, ollamaHealthy } = useModels()
+  const { models } = useModels()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('overview')
   const [creating, setCreating] = useState(false)

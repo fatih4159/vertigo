@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Agent, Iteration, MemoryEntry, RunMode, ChatMessage, WsEvent } from '../types'
+import type { Agent, Iteration, RunMode, WsEvent } from '../types'
 
 export interface CreateAgentPayload {
   name: string
