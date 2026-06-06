@@ -38,7 +38,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Database ready")
 
     # Ensure workspace directories exist
-    import os
     for d in settings.ALLOWED_DIRECTORIES:
         os.makedirs(d, exist_ok=True)
     os.makedirs(settings.WORKSPACE_ROOT, exist_ok=True)
