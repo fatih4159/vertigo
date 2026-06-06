@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure venv binaries (uvicorn, alembic, …) are on PATH
+export PATH="/opt/venv/bin:$PATH"
+
 PORT="${PORT:-8080}"
 BACKEND_PORT=8000
 
@@ -11,6 +14,16 @@ echo "    Backend port: $BACKEND_PORT"
 # Create nginx temp dirs (runs without root)
 mkdir -p /tmp/nginx-client-body /tmp/nginx-proxy \
          /tmp/nginx-fastcgi /tmp/nginx-uwsgi /tmp/nginx-scgi
+
+# Nix nginx stores mime.types inside the nix store, not at /etc/nginx/.
+# Find it and copy once so the nginx.conf include works.
+if [ ! -f /etc/nginx/mime.types ]; then
+  mkdir -p /etc/nginx
+  NGINX_MIME=$(find /nix/store -name "mime.types" 2>/dev/null | grep -m1 nginx || true)
+  if [ -n "$NGINX_MIME" ]; then
+    cp "$NGINX_MIME" /etc/nginx/mime.types
+  fi
+fi
 
 # Inject runtime port into nginx config
 sed "s/__PORT__/$PORT/" /app/nginx.conf > /tmp/nginx-runtime.conf
