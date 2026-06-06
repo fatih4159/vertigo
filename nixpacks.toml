@@ -3,14 +3,14 @@ nixPkgs = ["python311", "nodejs_20", "nodePackages.npm", "nginx"]
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt",
+  "python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt",
   "cd ui && npm ci --prefer-offline"
 ]
 
 [phases.build]
 cmds = [
   "cd ui && npm run build",
-  "python -m alembic upgrade head || true"
+  "/opt/venv/bin/python -m alembic upgrade head || true"
 ]
 
 [start]
