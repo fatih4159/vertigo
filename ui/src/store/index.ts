@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Agent, OllamaModel, WsEvent, Settings } from '../types'
+import type { Agent, OllamaModel, WsEvent, Settings, GitHubUser, GitHubRepo } from '../types'
 
 interface AppState {
   // Agents
@@ -29,6 +29,12 @@ interface AppState {
   // Settings
   settings: Settings
   updateSettings: (partial: Partial<Settings>) => void
+
+  // GitHub (not persisted)
+  githubUser: GitHubUser | null
+  githubRepos: GitHubRepo[]
+  setGithubUser: (user: GitHubUser | null) => void
+  setGithubRepos: (repos: GitHubRepo[]) => void
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +43,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultModel: 'qwen2.5-coder:latest',
   autoScroll: true,
   maxEventHistory: 300,
+  githubToken: '',
 }
 
 export const useAppStore = create<AppState>()(
@@ -83,6 +90,12 @@ export const useAppStore = create<AppState>()(
       settings: DEFAULT_SETTINGS,
       updateSettings: (partial) =>
         set((state) => ({ settings: { ...state.settings, ...partial } })),
+
+      // GitHub
+      githubUser: null,
+      githubRepos: [],
+      setGithubUser: (githubUser) => set({ githubUser }),
+      setGithubRepos: (githubRepos) => set({ githubRepos }),
     }),
     {
       name: 'aaos-store',

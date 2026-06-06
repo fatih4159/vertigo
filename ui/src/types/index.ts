@@ -152,10 +152,29 @@ export interface GitStatus {
   behind: number
 }
 
+export interface GitHubUser {
+  login: string
+  name: string | null
+  avatar_url: string
+}
+
+export interface GitHubRepo {
+  id: number
+  full_name: string
+  name: string
+  owner: { login: string }
+  description: string | null
+  private: boolean
+  html_url: string
+  default_branch: string
+  updated_at: string
+}
+
 export interface Settings {
   backendUrl: string
   wsUrl: string
   defaultModel: string
   autoScroll: boolean
   maxEventHistory: number
+  githubToken: string
 }
