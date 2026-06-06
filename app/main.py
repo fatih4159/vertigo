@@ -1,6 +1,7 @@
 """FastAPI application entry point for AAOS."""
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
