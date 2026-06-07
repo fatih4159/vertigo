@@ -15,8 +15,9 @@ from app.agent.factory import AgentFactory
 from app.agent.runner import RunMode
 from app.config.settings import settings
 from app.core.exceptions import AgentNotFoundError, AgentStateError
+from sqlalchemy import select as sa_select
 from app.storage.repositories import AgentRepository, IterationRepository, AgentEventRepository
-from app.database.models import Agent
+from app.database.models import Agent, ToolCall
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -402,6 +403,19 @@ async def list_iterations(
 
     iter_repo = IterationRepository(db)
     iterations = await iter_repo.list_for_agent(agent_id, limit=limit, offset=offset)
+
+    # Batch-load tool_calls for all iterations in a single query
+    tc_by_iter: Dict[str, List[ToolCall]] = {it.id: [] for it in iterations}
+    if iterations:
+        tc_stmt = (
+            sa_select(ToolCall)
+            .where(ToolCall.iteration_id.in_([it.id for it in iterations]))
+            .order_by(ToolCall.called_at.asc())
+        )
+        tc_result = await db.execute(tc_stmt)
+        for tc in tc_result.scalars().all():
+            tc_by_iter[tc.iteration_id].append(tc)
+
     return [
         {
             "id": it.id,
@@ -411,7 +425,21 @@ async def list_iterations(
             "tokens_used": it.tokens_used,
             "started_at": it.started_at.isoformat(),
             "finished_at": it.finished_at.isoformat() if it.finished_at else None,
+            "plan_json": it.plan_json,
             "result_json": it.result_json,
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "tool_name": tc.tool_name,
+                    "input_json": tc.input_json,
+                    "output_json": tc.output_json,
+                    "success": tc.success,
+                    "error_message": tc.error_message,
+                    "duration_ms": tc.duration_ms,
+                    "called_at": tc.called_at.isoformat(),
+                }
+                for tc in tc_by_iter[it.id]
+            ],
         }
         for it in iterations
     ]
