@@ -141,7 +141,7 @@ export default function Sidebar() {
               onClick={closeMobile}
               className={({ isActive }) =>
                 clsx(
-                  'flex items-center gap-2 pl-8 pr-3 py-1 rounded text-xs transition-colors',
+                  'flex items-center gap-2 pl-5 sm:pl-8 pr-3 py-1 rounded text-xs transition-colors',
                   isActive
                     ? 'text-accent'
                     : 'text-slate-500 hover:text-slate-300'

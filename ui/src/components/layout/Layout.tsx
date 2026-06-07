@@ -20,7 +20,7 @@ export default function Layout({ children, wsConnected }: Props) {
         }`}
       >
         <Header wsConnected={wsConnected} />
-        <main className="flex-1 overflow-auto p-4">{children}</main>
+        <main className="flex-1 overflow-auto p-2 sm:p-4">{children}</main>
       </div>
     </div>
   )

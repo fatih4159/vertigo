@@ -9,6 +9,14 @@ export interface CreateAgentPayload {
   config?: Record<string, unknown>
 }
 
+export interface UpdateAgentPayload {
+  name?: string
+  masterprompt?: string
+  model_name?: string
+  repository_url?: string | null
+  repository_branch?: string | null
+}
+
 export interface StartAgentPayload {
   mode: RunMode
   n_iterations?: number
@@ -32,8 +40,13 @@ export const agentsApi = {
     return res.data
   },
 
-  update: async (id: string, payload: Partial<CreateAgentPayload>): Promise<Agent> => {
+  update: async (id: string, payload: UpdateAgentPayload): Promise<Agent> => {
     const res = await apiClient.patch<Agent>(`/agents/${id}`, payload)
+    return res.data
+  },
+
+  setupRepository: async (id: string): Promise<{ status: string; workspace_path: string; file_count: number }> => {
+    const res = await apiClient.post(`/agents/${id}/repository/setup`)
     return res.data
   },
 

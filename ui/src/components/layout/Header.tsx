@@ -31,7 +31,7 @@ export default function Header({ wsConnected }: Props) {
             >
               {activeAgent.state}
             </span>
-            <span className="text-xs text-slate-500 font-mono">{activeAgent.model_name}</span>
+            <span className="hidden sm:inline text-xs text-slate-500 font-mono">{activeAgent.model_name}</span>
           </div>
         ) : (
           <span className="text-sm text-slate-500">AAOS — AGI Agent Operating System</span>
