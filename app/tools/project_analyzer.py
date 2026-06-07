@@ -22,6 +22,22 @@ class ProjectAnalyzerTool(BaseTool):
     )
     permissions = [ToolPermission.READ]
 
+    def _parameters_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Absolute or workspace-relative path to the project directory to analyse",
+                },
+                "max_files": {
+                    "type": "integer",
+                    "description": "Maximum number of files to inspect (default 1000)",
+                },
+            },
+            "required": ["path"],
+        }
+
     async def execute(self, path: str, max_files: int = 1000) -> ToolResult:
         try:
             root = _resolve_safe(path)

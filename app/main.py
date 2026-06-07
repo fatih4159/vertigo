@@ -29,14 +29,49 @@ from app.api.websocket import router as ws_router
 # Lifespan
 # ---------------------------------------------------------------------------
 
+async def _reset_transient_agent_states() -> None:
+    """Reset agents left in RUNNING/PAUSED state from a previous server run.
+
+    Without live runner instances these agents are frozen and uncontrollable.
+    Resetting to STOPPED lets users restart them immediately.
+    """
+    from datetime import datetime
+    from sqlalchemy import update as sql_update
+    from app.database.models import Agent
+    from app.database.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            sql_update(Agent)
+            .where(Agent.state.in_(["RUNNING", "PAUSED"]))
+            .values(state="STOPPED", updated_at=datetime.utcnow())
+        )
+        result = await session.execute(stmt)
+        await session.commit()
+        if result.rowcount:
+            logger.warning(
+                f"[Startup] Reset {result.rowcount} agent(s) from active state to STOPPED "
+                "(no live runners after restart)"
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
+    # Ensure the SQLite data directory exists before the engine is created
+    if settings.DATABASE_URL.startswith("sqlite"):
+        from pathlib import Path
+        db_path = settings.DATABASE_URL.split("///")[-1]
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
     # Initialise database tables
     await init_db()
     logger.info("Database ready")
+
+    # Recover agents frozen in transient states from a prior unclean shutdown
+    await _reset_transient_agent_states()
 
     # Ensure workspace directories exist
     for d in settings.ALLOWED_DIRECTORIES:

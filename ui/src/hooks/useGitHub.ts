@@ -1,8 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useAppStore } from '../store'
 import type { GitHubUser, GitHubRepo } from '../types'
 
 const GH_API = 'https://api.github.com'
+
+// Module-level flag so auto-reconnect only fires once across all hook instances
+let autoConnectAttempted = false
 
 function ghHeaders(token: string) {
   return {
@@ -41,7 +44,17 @@ export function useGitHub() {
     [updateSettings, setGithubUser]
   )
 
+  // Auto-reconnect on app load if a token is persisted but the user session is lost
+  useEffect(() => {
+    const token = settings.githubToken
+    if (!autoConnectAttempted && token && !githubUser) {
+      autoConnectAttempted = true
+      connect(token)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const disconnect = useCallback(() => {
+    autoConnectAttempted = false
     updateSettings({ githubToken: '' })
     setGithubUser(null)
     setGithubRepos([])
