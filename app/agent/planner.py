@@ -88,7 +88,8 @@ you must produce a JSON plan with the following structure:
   ]
 }}
 
-Available tools: {available_tools}
+Available tools and their required parameters:
+{available_tools}
 
 RULES:
 - Produce ONLY valid JSON, no markdown fences, no prose outside the JSON.
@@ -96,17 +97,36 @@ RULES:
 - Steps should be atomic and achievable in one tool call.
 - Maximum 10 steps per plan.
 - Be specific and actionable.
+- Use ONLY the parameter names listed in each tool's schema; do not invent parameter names.
 """
 
     def __init__(
         self,
         ollama_client: OllamaClient,
         model: str,
-        available_tools: List[str],
+        available_tools: List[Dict[str, Any]],
     ) -> None:
         self.ollama = ollama_client
         self.model = model
         self.available_tools = available_tools
+
+    def _format_tools_for_prompt(self) -> str:
+        lines = []
+        for schema in self.available_tools:
+            name = schema.get("name", "unknown")
+            desc = schema.get("description", "")
+            params = schema.get("parameters", {})
+            props = params.get("properties", {})
+            required = params.get("required", [])
+            param_parts = []
+            for param_name, param_info in props.items():
+                req_marker = " (required)" if param_name in required else " (optional)"
+                param_type = param_info.get("type", "any")
+                param_desc = param_info.get("description", "")
+                param_parts.append(f"  - {param_name}: {param_type}{req_marker} — {param_desc}")
+            params_str = "\n".join(param_parts) if param_parts else "  (no parameters)"
+            lines.append(f"- {name}: {desc}\n{params_str}")
+        return "\n".join(lines)
 
     async def create_plan(
         self,
@@ -116,9 +136,8 @@ RULES:
         previous_results: Optional[List[Dict[str, Any]]] = None,
     ) -> Plan:
         """Ask the LLM to produce a plan for the current iteration."""
-        system = self.PLAN_SYSTEM_PROMPT.format(
-            available_tools=", ".join(self.available_tools)
-        )
+        tools_description = self._format_tools_for_prompt()
+        system = self.PLAN_SYSTEM_PROMPT.format(available_tools=tools_description)
 
         user_msg = f"""Master Prompt:
 {masterprompt}

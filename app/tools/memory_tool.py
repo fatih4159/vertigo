@@ -15,6 +15,20 @@ class MemoryReadTool(BaseTool):
     def __init__(self, memory_manager: Any) -> None:
         self._memory = memory_manager
 
+    def _parameters_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "The memory key to retrieve"},
+                "memory_type": {
+                    "type": "string",
+                    "description": "Memory tier: 'short', 'mid', or 'long'",
+                    "default": "short",
+                },
+            },
+            "required": ["key"],
+        }
+
     async def execute(self, key: str, memory_type: str = "short") -> ToolResult:
         try:
             value = await self._memory.get(key, memory_type=memory_type)
@@ -33,6 +47,21 @@ class MemoryWriteTool(BaseTool):
 
     def __init__(self, memory_manager: Any) -> None:
         self._memory = memory_manager
+
+    def _parameters_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "The memory key to store under"},
+                "value": {"description": "The value to store"},
+                "memory_type": {
+                    "type": "string",
+                    "description": "Memory tier: 'short', 'mid', or 'long'",
+                    "default": "short",
+                },
+            },
+            "required": ["key", "value"],
+        }
 
     async def execute(
         self,
@@ -61,6 +90,21 @@ class MemorySearchTool(BaseTool):
     def __init__(self, memory_manager: Any) -> None:
         self._memory = memory_manager
 
+    def _parameters_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query string"},
+                "memory_type": {
+                    "type": "string",
+                    "description": "Memory tier to search: 'short', 'mid', 'long', or 'all'",
+                    "default": "all",
+                },
+                "limit": {"type": "integer", "description": "Maximum results to return", "default": 10},
+            },
+            "required": ["query"],
+        }
+
     async def execute(
         self,
         query: str,
@@ -87,6 +131,20 @@ class MemoryDeleteTool(BaseTool):
     def __init__(self, memory_manager: Any) -> None:
         self._memory = memory_manager
 
+    def _parameters_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "The memory key to delete"},
+                "memory_type": {
+                    "type": "string",
+                    "description": "Memory tier: 'short', 'mid', or 'long'",
+                    "default": "short",
+                },
+            },
+            "required": ["key"],
+        }
+
     async def execute(self, key: str, memory_type: str = "short") -> ToolResult:
         try:
             deleted = await self._memory.delete(key, memory_type=memory_type)
@@ -105,6 +163,20 @@ class MemoryListTool(BaseTool):
 
     def __init__(self, memory_manager: Any) -> None:
         self._memory = memory_manager
+
+    def _parameters_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "memory_type": {
+                    "type": "string",
+                    "description": "Memory tier to list: 'short', 'mid', 'long', or 'all'",
+                    "default": "all",
+                },
+                "limit": {"type": "integer", "description": "Maximum keys to return", "default": 50},
+            },
+            "required": [],
+        }
 
     async def execute(self, memory_type: str = "all", limit: int = 50) -> ToolResult:
         try:

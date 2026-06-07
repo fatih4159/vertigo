@@ -80,7 +80,7 @@ class AgentRunner:
         self.planner = Planner(
             ollama_client=ollama_client,
             model=model,
-            available_tools=list(self._tools.keys()),
+            available_tools=[t.get_schema() for t in tools],
         )
 
         self._iteration_count = 0
