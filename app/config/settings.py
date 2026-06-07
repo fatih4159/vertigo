@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./aaos.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./data/aaos.db"
     DATABASE_ECHO: bool = False
 
     # Ollama
