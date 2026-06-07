@@ -38,6 +38,8 @@ from app.tools.memory_tool import (
     MemoryReadTool, MemoryWriteTool, MemorySearchTool,
     MemoryDeleteTool, MemoryListTool,
 )
+from app.tools.tool_discovery import ToolCreatorTool, ToolSearchTool
+from app.extensions.tool_generator import ToolGenerator
 
 
 class MemoryManager:
@@ -217,8 +219,20 @@ class AgentFactory:
             db_session=db_session,
         )
 
+        # Wire discovery tools after runner construction so they share runner._tools
+        generator = ToolGenerator(ollama_client=ollama_client, model=model)
+        runner.register_tool(ToolSearchTool(tools_registry=runner._tools))
+        runner.register_tool(
+            ToolCreatorTool(
+                tools_registry=runner._tools,
+                register_callback=runner.register_tool,
+                generator=generator,
+                db_session=db_session,
+            )
+        )
+
         logger.info(
             f"[AgentFactory] Created agent {agent_id} with model={model}, "
-            f"tools={len(tools)}"
+            f"tools={len(runner._tools)}"
         )
         return runner

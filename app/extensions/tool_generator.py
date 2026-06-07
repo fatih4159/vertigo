@@ -21,19 +21,32 @@ from app.storage.repositories import GeneratedToolRepository
 
 _TOOL_SYSTEM_PROMPT = textwrap.dedent("""
 You are an expert Python developer creating tools for an autonomous AI agent.
-Tools must follow this exact pattern:
+Tools must follow this EXACT pattern:
 
 ```python
-from app.tools.base import BaseTool, ToolResult
-from typing import Any
+from __future__ import annotations
+from typing import Any, Dict
+from app.tools.base import BaseTool, ToolPermission, ToolResult
 
 class <ClassName>(BaseTool):
-    name = "<tool_name>"
+    name = "<tool_name>"          # snake_case unique identifier
+    version = "1.0.0"
     description = "<one-line description>"
-    category = "<category>"
+    permissions = [ToolPermission.READ]  # adjust: READ / WRITE / EXECUTE / NETWORK
 
-    async def run(self, **kwargs: Any) -> ToolResult:
-        # Implementation
+    def _parameters_schema(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "<param_name>": {"type": "string", "description": "<what it is>"},
+                # add more params as needed
+            },
+            "required": ["<param_name>"],
+        }
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        # Pull typed values from kwargs
+        # param = kwargs.get("param_name", "default")
         try:
             result = ...
             return ToolResult(success=True, output=str(result))
@@ -42,6 +55,7 @@ class <ClassName>(BaseTool):
 ```
 
 Rules:
+- Override execute(), NOT run()
 - No shell=True
 - No eval/exec
 - No raw file writes outside /tmp

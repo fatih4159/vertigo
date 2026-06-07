@@ -80,7 +80,7 @@ class AgentRunner:
         self.planner = Planner(
             ollama_client=ollama_client,
             model=model,
-            available_tools=list(self._tools.keys()),
+            available_tools=[t.get_schema() for t in tools],
         )
 
         self._iteration_count = 0
@@ -501,6 +501,12 @@ class AgentRunner:
     # ------------------------------------------------------------------
     # State accessors
     # ------------------------------------------------------------------
+
+    def register_tool(self, tool: BaseTool) -> None:
+        """Add a tool to the live registry and update the planner's schema list."""
+        self._tools[tool.name] = tool
+        self.planner.available_tools.append(tool.get_schema())
+        logger.info(f"[Agent {self.agent_id}] Registered tool: {tool.name}")
 
     @property
     def current_state(self) -> AgentState:
