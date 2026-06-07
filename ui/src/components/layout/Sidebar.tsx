@@ -19,6 +19,10 @@ export default function Sidebar() {
 
   if (!sidebarOpen) return null
 
+  const closeMobile = () => {
+    if (window.innerWidth < 768) setSidebarOpen(false)
+  }
+
   const handleNewAgent = async () => {
     setCreating(true)
     try {
@@ -31,6 +35,7 @@ export default function Sidebar() {
       setAgents(all)
       setActiveAgentId(agent.id)
       navigate(`/agents/${agent.id}`)
+      closeMobile()
     } catch (err) {
       console.error(err)
     } finally {
@@ -75,6 +80,7 @@ export default function Sidebar() {
       <nav className="p-2 space-y-1">
         <NavLink
           to="/dashboard"
+          onClick={closeMobile}
           className={({ isActive }) =>
             clsx(
               'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
@@ -109,7 +115,7 @@ export default function Sidebar() {
           <div key={agent.id} className="group relative">
             <NavLink
               to={`/agents/${agent.id}`}
-              onClick={() => setActiveAgentId(agent.id)}
+              onClick={() => { setActiveAgentId(agent.id); closeMobile() }}
               className={({ isActive }) =>
                 clsx(
                   'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors w-full',
@@ -132,6 +138,7 @@ export default function Sidebar() {
             {/* Memory sub-link */}
             <NavLink
               to={`/memory/${agent.id}`}
+              onClick={closeMobile}
               className={({ isActive }) =>
                 clsx(
                   'flex items-center gap-2 pl-8 pr-3 py-1 rounded text-xs transition-colors',
@@ -157,8 +164,16 @@ export default function Sidebar() {
       {/* Bottom */}
       <div className="p-2 border-t border-border">
         <NavLink
-          to="/dashboard"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-bg-tertiary hover:text-slate-200 transition-colors"
+          to="/settings"
+          onClick={closeMobile}
+          className={({ isActive }) =>
+            clsx(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+              isActive
+                ? 'bg-accent/20 text-accent'
+                : 'text-slate-400 hover:bg-bg-tertiary hover:text-slate-200'
+            )
+          }
         >
           <Settings className="w-4 h-4" />
           Settings

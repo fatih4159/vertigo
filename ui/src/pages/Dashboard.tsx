@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, Plus, Activity, Cpu, Brain, Wrench, Loader2, Github } from 'lucide-react'
+import { Bot, Plus, Cpu, Brain, Wrench, Loader2, Github, Activity } from 'lucide-react'
 import clsx from 'clsx'
 import { useAppStore } from '../store'
 import { agentsApi } from '../api/agents'
 import { useModels } from '../hooks/useModels'
 import ModelManagement from '../components/ModelManagement'
-import Settings from '../components/Settings'
 import ToolViewer from '../components/ToolViewer'
 import GitHubRepoSelector from '../components/GitHubRepoSelector'
 import type { Agent } from '../types'
@@ -19,7 +18,7 @@ const STATE_COLORS: Record<string, string> = {
   ERROR: 'bg-state-error animate-pulse',
 }
 
-type Tab = 'overview' | 'models' | 'tools' | 'actions' | 'settings'
+type Tab = 'overview' | 'models' | 'tools' | 'actions'
 
 export default function Dashboard() {
   const { agents, setAgents, setActiveAgentId, wsEvents } = useAppStore()
@@ -105,7 +104,6 @@ export default function Dashboard() {
             { id: 'models', label: 'Models', icon: Cpu },
             { id: 'tools', label: 'Tools', icon: Wrench },
             { id: 'actions', label: 'Actions', icon: Github },
-            { id: 'settings', label: 'Settings', icon: Activity },
           ] as const
         ).map(({ id, label, icon: Icon }) => (
           <button
@@ -182,8 +180,6 @@ export default function Dashboard() {
           <GitHubRepoSelector />
         </div>
       )}
-
-      {tab === 'settings' && <Settings />}
     </div>
   )
 }
