@@ -6,10 +6,12 @@ interface AppState {
   // Agents
   agents: Agent[]
   activeAgentId: string | null
+  agentGoalDrafts: Record<string, string>
   setAgents: (agents: Agent[]) => void
   updateAgent: (agent: Agent) => void
   removeAgent: (id: string) => void
   setActiveAgentId: (id: string | null) => void
+  setAgentGoalDraft: (agentId: string, goal: string) => void
 
   // Models
   models: OllamaModel[]
@@ -52,6 +54,7 @@ export const useAppStore = create<AppState>()(
       // Agents
       agents: [],
       activeAgentId: null,
+      agentGoalDrafts: {},
       setAgents: (agents) => set({ agents }),
       updateAgent: (agent) =>
         set((state) => ({
@@ -60,11 +63,20 @@ export const useAppStore = create<AppState>()(
             : [...state.agents, agent],
         })),
       removeAgent: (id) =>
-        set((state) => ({
-          agents: state.agents.filter((a) => a.id !== id),
-          activeAgentId: state.activeAgentId === id ? null : state.activeAgentId,
-        })),
+        set((state) => {
+          const drafts = { ...state.agentGoalDrafts }
+          delete drafts[id]
+          return {
+            agents: state.agents.filter((a) => a.id !== id),
+            activeAgentId: state.activeAgentId === id ? null : state.activeAgentId,
+            agentGoalDrafts: drafts,
+          }
+        }),
       setActiveAgentId: (id) => set({ activeAgentId: id }),
+      setAgentGoalDraft: (agentId, goal) =>
+        set((state) => ({
+          agentGoalDrafts: { ...state.agentGoalDrafts, [agentId]: goal },
+        })),
 
       // Models
       models: [],
@@ -101,6 +113,7 @@ export const useAppStore = create<AppState>()(
       name: 'aaos-store',
       partialize: (state) => ({
         activeAgentId: state.activeAgentId,
+        agentGoalDrafts: state.agentGoalDrafts,
         settings: state.settings,
         sidebarOpen: state.sidebarOpen,
       }),

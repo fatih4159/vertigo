@@ -13,7 +13,7 @@ import { agentsApi } from '../../api/agents'
 import { useState } from 'react'
 
 export default function Sidebar() {
-  const { agents, activeAgentId, setActiveAgentId, sidebarOpen, setAgents } = useAppStore()
+  const { agents, activeAgentId, setActiveAgentId, sidebarOpen, setSidebarOpen, setAgents } = useAppStore()
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
 
@@ -55,6 +55,12 @@ export default function Sidebar() {
   }
 
   return (
+    <>
+    {/* Tap-to-close backdrop on mobile */}
+    <div
+      className="md:hidden fixed inset-0 bg-black/50 z-10"
+      onClick={() => setSidebarOpen(false)}
+    />
     <aside className="fixed left-0 top-0 h-screen w-64 bg-bg-secondary border-r border-border flex flex-col z-20">
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-4 border-b border-border">
@@ -159,6 +165,7 @@ export default function Sidebar() {
         </NavLink>
       </div>
     </aside>
+    </>
   )
 }
 

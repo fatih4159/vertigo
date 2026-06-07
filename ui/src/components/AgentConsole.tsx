@@ -3,6 +3,7 @@ import { Play, Pause, Square, StepForward, Zap, Target, Repeat, Hash } from 'luc
 import clsx from 'clsx'
 import type { Agent, RunMode, WsEvent } from '../types'
 import type { StartAgentPayload } from '../api/agents'
+import { useAppStore } from '../store'
 
 interface Props {
   agent: Agent
@@ -36,9 +37,11 @@ const STATE_TEXT: Record<string, string> = {
 export default function AgentConsole({ agent, wsEvents, onStart, onPause, onResume, onStop }: Props) {
   const [mode, setMode] = useState<RunMode>('run_forever')
   const [nIterations, setNIterations] = useState(10)
-  const [goal, setGoal] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { agentGoalDrafts, setAgentGoalDraft } = useAppStore()
+  const goal = agentGoalDrafts[agent.id] ?? ''
+  const setGoal = (value: string) => setAgentGoalDraft(agent.id, value)
 
   const isRunning = agent.state === 'RUNNING' || agent.state === 'THINKING' || agent.state === 'EXECUTING'
   const isPaused = agent.state === 'PAUSED'
@@ -159,7 +162,7 @@ export default function AgentConsole({ agent, wsEvents, onStart, onPause, onResu
             <textarea
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              rows={2}
+              rows={3}
               className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-accent resize-none font-mono"
               placeholder="Goal (optional)..."
             />
