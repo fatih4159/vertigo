@@ -64,6 +64,7 @@ class AgentRunner:
         ollama_client: OllamaClient,
         event_bus: EventBus,
         db_session: AsyncSession,
+        workspace_path: Optional[str] = None,
     ) -> None:
         self.agent_id = agent_id
         self.masterprompt = masterprompt
@@ -72,6 +73,7 @@ class AgentRunner:
         self.ollama = ollama_client
         self.event_bus = event_bus
         self.db = db_session
+        self.workspace_path = workspace_path
 
         # Register passed tools into a local dict for fast lookup
         self._tools: Dict[str, BaseTool] = {t.name: t for t in tools}
@@ -326,6 +328,8 @@ class AgentRunner:
 
         await self._publish(EventType.TOOL_STARTED, {"tool": step.tool, "args": step.tool_args})
 
+        from app.tools.filesystem import agent_workspace
+        ws_token = agent_workspace.set(self.workspace_path) if self.workspace_path else None
         try:
             tool_result: ToolResult = await tool.run(**step.tool_args)
             step.result = str(tool_result.output)[:2000] if tool_result.output else ""
@@ -343,6 +347,9 @@ class AgentRunner:
             step.error = err
             record["error"] = err
             logger.error(f"[Agent {self.agent_id}] Tool '{step.tool}' raised: {exc}")
+        finally:
+            if ws_token is not None:
+                agent_workspace.reset(ws_token)
 
         await self._publish(
             EventType.TOOL_FINISHED,
@@ -362,16 +369,18 @@ class AgentRunner:
     async def _build_context(self) -> str:
         """Build a textual context string from short/mid memory for the planner."""
         from pathlib import Path
-        workspace = str(Path(settings.WORKSPACE_ROOT).resolve())
+        workspace = str(Path(self.workspace_path or settings.WORKSPACE_ROOT).resolve())
         allowed = ", ".join(str(Path(d).resolve()) for d in settings.ALLOWED_DIRECTORIES)
         lines = [
             f"Agent ID: {self.agent_id}",
             f"Current state: {self.state_machine.state.value}",
             f"Iterations completed: {self._iteration_count}",
             f"Recent goals: {', '.join(self._completed_goals[-5:]) if self._completed_goals else 'none'}",
-            f"Workspace root (use this path for file/project tools): {workspace}",
+            f"Workspace root (use this path for ALL file/project/git tools): {workspace}",
             f"Allowed directories: {allowed}",
         ]
+        if self.workspace_path:
+            lines.append(f"Repository workspace (indexed): {self.workspace_path}")
 
         # Try to pull relevant context from memory
         try:

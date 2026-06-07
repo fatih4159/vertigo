@@ -217,6 +217,7 @@ class AgentFactory:
             ollama_client=ollama_client,
             event_bus=event_bus,
             db_session=db_session,
+            workspace_path=config.get("workspace_path"),
         )
 
         # Wire discovery tools after runner construction so they share runner._tools

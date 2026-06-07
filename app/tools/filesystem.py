@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -12,18 +13,31 @@ from app.tools.base import BaseTool, ToolPermission, ToolResult
 from app.config.settings import settings
 from app.core.exceptions import WorkspaceSecurityError
 
+# Set by AgentRunner before each tool execution when a repo workspace is active.
+# Allows per-agent repo paths (e.g. /tmp/aaos/workspaces/<id>) through _resolve_safe
+# and serves as the default path for directory/file tools.
+agent_workspace: ContextVar[Optional[str]] = ContextVar("agent_workspace", default=None)
+
 
 def _resolve_safe(path: str) -> Path:
     """Resolve path and verify it sits inside an allowed directory."""
     resolved = Path(path).resolve()
     allowed = [Path(d).resolve() for d in settings.ALLOWED_DIRECTORIES]
     allowed.append(Path(settings.WORKSPACE_ROOT).resolve())
+    ws = agent_workspace.get()
+    if ws:
+        allowed.append(Path(ws).resolve())
     if not any(str(resolved).startswith(str(a)) for a in allowed):
         raise WorkspaceSecurityError(
             f"Access denied: '{resolved}' is outside allowed directories",
             {"path": str(resolved)},
         )
     return resolved
+
+
+def _default_workspace() -> str:
+    """Return the active agent workspace, falling back to WORKSPACE_ROOT."""
+    return agent_workspace.get() or settings.WORKSPACE_ROOT
 
 
 class ReadFileTool(BaseTool):
@@ -130,7 +144,7 @@ class ListDirectoryTool(BaseTool):
         self, path: Optional[str] = None, recursive: bool = False, pattern: str = "*"
     ) -> ToolResult:
         if path is None:
-            path = settings.WORKSPACE_ROOT
+            path = _default_workspace()
         try:
             safe_path = _resolve_safe(path)
             if not safe_path.exists():
