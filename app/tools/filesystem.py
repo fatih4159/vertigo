@@ -127,8 +127,10 @@ class ListDirectoryTool(BaseTool):
     permissions = [ToolPermission.READ]
 
     async def execute(
-        self, path: str = ".", recursive: bool = False, pattern: str = "*"
+        self, path: Optional[str] = None, recursive: bool = False, pattern: str = "*"
     ) -> ToolResult:
+        if path is None:
+            path = settings.WORKSPACE_ROOT
         try:
             safe_path = _resolve_safe(path)
             if not safe_path.exists():
