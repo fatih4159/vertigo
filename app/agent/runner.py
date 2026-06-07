@@ -361,11 +361,16 @@ class AgentRunner:
 
     async def _build_context(self) -> str:
         """Build a textual context string from short/mid memory for the planner."""
+        from pathlib import Path
+        workspace = str(Path(settings.WORKSPACE_ROOT).resolve())
+        allowed = ", ".join(str(Path(d).resolve()) for d in settings.ALLOWED_DIRECTORIES)
         lines = [
             f"Agent ID: {self.agent_id}",
             f"Current state: {self.state_machine.state.value}",
             f"Iterations completed: {self._iteration_count}",
             f"Recent goals: {', '.join(self._completed_goals[-5:]) if self._completed_goals else 'none'}",
+            f"Workspace root (use this path for file/project tools): {workspace}",
+            f"Allowed directories: {allowed}",
         ]
 
         # Try to pull relevant context from memory
