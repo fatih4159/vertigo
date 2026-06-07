@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
 import AgentPage from './pages/AgentPage'
 import MemoryPage from './pages/MemoryPage'
+import SettingsPage from './pages/SettingsPage'
 import { useAppStore } from './store'
 import { useWebSocket } from './hooks/useWebSocket'
 import { WS_URL } from './api/client'
@@ -32,6 +33,7 @@ function AppInner() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/agents/:agentId" element={<AgentPage />} />
         <Route path="/memory/:agentId" element={<MemoryPage />} />
       </Routes>

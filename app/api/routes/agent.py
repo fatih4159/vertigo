@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import subprocess
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
@@ -59,6 +61,14 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
 
 
+class UpdateAgentRequest(BaseModel):
+    name: Optional[str] = None
+    masterprompt: Optional[str] = None
+    model_name: Optional[str] = None
+    repository_url: Optional[str] = None
+    repository_branch: Optional[str] = None
+
+
 class ChatResponse(BaseModel):
     agent_id: str
     message: str
@@ -66,14 +76,19 @@ class ChatResponse(BaseModel):
 
 
 def _agent_to_dict(agent: Agent) -> Dict[str, Any]:
+    config = agent.config_json or {}
     return {
         "id": agent.id,
         "name": agent.name,
         "masterprompt": agent.masterprompt,
         "state": agent.state,
         "model_name": agent.model_name,
-        "config_json": agent.config_json,
+        "config_json": config,
         "project_id": agent.project_id,
+        "repository_url": config.get("repository_url"),
+        "repository_branch": config.get("repository_branch"),
+        "workspace_path": config.get("workspace_path"),
+        "workspace_file_count": config.get("file_count"),
         "created_at": agent.created_at.isoformat(),
         "updated_at": agent.updated_at.isoformat(),
     }
@@ -128,6 +143,113 @@ async def get_agent(
         runner = _running_agents[agent_id]
         result["live_status"] = runner.get_status()
     return result
+
+
+@router.patch("/{agent_id}")
+async def update_agent(
+    agent_id: str,
+    body: UpdateAgentRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    repo = AgentRepository(db)
+    try:
+        agent = await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+
+    updates: Dict[str, Any] = {}
+    if body.name is not None:
+        updates["name"] = body.name
+    if body.masterprompt is not None:
+        updates["masterprompt"] = body.masterprompt
+    if body.model_name is not None:
+        updates["model_name"] = body.model_name
+
+    # Repo fields live inside config_json
+    if body.repository_url is not None or body.repository_branch is not None:
+        config = dict(agent.config_json or {})
+        if body.repository_url is not None:
+            config["repository_url"] = body.repository_url
+        if body.repository_branch is not None:
+            config["repository_branch"] = body.repository_branch
+        # Clear stale workspace data when repo changes
+        if body.repository_url is not None:
+            config.pop("workspace_path", None)
+            config.pop("file_count", None)
+            config.pop("file_tree", None)
+        updates["config_json"] = config
+
+    if updates:
+        await repo.update(agent_id, **updates)
+        await db.commit()
+
+    agent = await repo.get_or_raise(agent_id)
+    return _agent_to_dict(agent)
+
+
+@router.post("/{agent_id}/repository/setup")
+async def setup_repository(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    repo = AgentRepository(db)
+    try:
+        agent = await repo.get_or_raise(agent_id)
+    except AgentNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+
+    config = dict(agent.config_json or {})
+    repository_url = config.get("repository_url")
+    if not repository_url:
+        raise HTTPException(status_code=400, detail="No repository URL configured for this agent")
+
+    workspace = f"/tmp/aaos/workspaces/{agent_id}"
+    branch = config.get("repository_branch") or ""
+
+    os.makedirs(workspace, exist_ok=True)
+
+    if os.path.exists(os.path.join(workspace, ".git")):
+        result = subprocess.run(
+            ["git", "-C", workspace, "pull"],
+            capture_output=True, text=True, timeout=120,
+        )
+        action = "pulled"
+    else:
+        cmd = ["git", "clone", "--depth", "1"]
+        if branch:
+            cmd += ["--branch", branch]
+        cmd += [repository_url, workspace]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if result.returncode != 0 and branch:
+            # Retry without explicit branch (uses remote default)
+            result = subprocess.run(
+                ["git", "clone", "--depth", "1", repository_url, workspace],
+                capture_output=True, text=True, timeout=180,
+            )
+        action = "cloned"
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=f"Git error: {result.stderr[:500]}")
+
+    # Index: collect file tree (skip hidden dirs)
+    file_tree: List[str] = []
+    for root, dirs, files in os.walk(workspace):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        rel = os.path.relpath(root, workspace)
+        for f in files:
+            file_tree.append(os.path.join(rel, f) if rel != "." else f)
+            if len(file_tree) >= 500:
+                break
+        if len(file_tree) >= 500:
+            break
+
+    config["workspace_path"] = workspace
+    config["file_count"] = len(file_tree)
+    config["file_tree"] = file_tree[:200]
+    await repo.update(agent_id, config_json=config)
+    await db.commit()
+
+    return {"status": action, "workspace_path": workspace, "file_count": len(file_tree)}
 
 
 @router.post("/{agent_id}/start")

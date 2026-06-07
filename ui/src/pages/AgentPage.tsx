@@ -7,6 +7,7 @@ import {
   Activity,
   FileCode,
   GitBranch,
+  FolderGit2,
   Bot,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -20,14 +21,16 @@ import EventTimeline from '../components/EventTimeline'
 import LogsPanel from '../components/LogsPanel'
 import ErrorPanel from '../components/ErrorPanel'
 import GitStatus from '../components/GitStatus'
+import RepoPanel from '../components/RepoPanel'
 import { agentsApi } from '../api/agents'
 
-type Tab = 'console' | 'chat' | 'masterprompt' | 'iterations' | 'events' | 'logs' | 'git'
+type Tab = 'console' | 'chat' | 'masterprompt' | 'iterations' | 'events' | 'logs' | 'git' | 'repo'
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'console', label: 'Console', icon: Terminal },
   { id: 'chat', label: 'Chat', icon: MessageSquare },
-  { id: 'masterprompt', label: 'Masterprompt', icon: FileCode },
+  { id: 'repo', label: 'Repo', icon: FolderGit2 },
+  { id: 'masterprompt', label: 'Prompt', icon: FileCode },
   { id: 'iterations', label: 'Iterations', icon: History },
   { id: 'events', label: 'Events', icon: Activity },
   { id: 'logs', label: 'Logs', icon: Terminal },
@@ -85,14 +88,14 @@ export default function AgentPage() {
             key={id}
             onClick={() => setTab(id)}
             className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors',
+              'flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-colors',
               tab === id
                 ? 'bg-accent/20 text-accent'
                 : 'text-slate-500 hover:text-slate-300'
             )}
           >
             <Icon className="w-3.5 h-3.5" />
-            {label}
+            <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
@@ -157,6 +160,12 @@ export default function AgentPage() {
         {tab === 'logs' && (
           <div className="h-full">
             <LogsPanel events={agentEvents} onClear={clearWsEvents} />
+          </div>
+        )}
+
+        {tab === 'repo' && (
+          <div className="h-full">
+            <RepoPanel agent={agent} onUpdate={updateAgent} />
           </div>
         )}
 

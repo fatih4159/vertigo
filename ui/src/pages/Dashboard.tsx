@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, Plus, Activity, Cpu, Brain, Wrench, Loader2, Github } from 'lucide-react'
+import { Bot, Plus, Cpu, Brain, Wrench, Loader2, Github, Activity } from 'lucide-react'
 import clsx from 'clsx'
 import { useAppStore } from '../store'
 import { agentsApi } from '../api/agents'
 import { useModels } from '../hooks/useModels'
 import ModelManagement from '../components/ModelManagement'
-import Settings from '../components/Settings'
 import ToolViewer from '../components/ToolViewer'
 import GitHubRepoSelector from '../components/GitHubRepoSelector'
 import type { Agent } from '../types'
@@ -19,7 +18,7 @@ const STATE_COLORS: Record<string, string> = {
   ERROR: 'bg-state-error animate-pulse',
 }
 
-type Tab = 'overview' | 'models' | 'tools' | 'actions' | 'settings'
+type Tab = 'overview' | 'models' | 'tools' | 'actions'
 
 export default function Dashboard() {
   const { agents, setAgents, setActiveAgentId, wsEvents } = useAppStore()
@@ -63,7 +62,7 @@ export default function Dashboard() {
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Hero */}
       <div className="bg-bg-secondary rounded-xl border border-border p-6">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-slate-100">AAOS Dashboard</h1>
             <p className="text-slate-500 mt-1 text-sm">AGI Agent Operating System</p>
@@ -71,7 +70,7 @@ export default function Dashboard() {
           <button
             onClick={handleNewAgent}
             disabled={creating}
-            className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex-shrink-0"
           >
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             New Agent
@@ -105,21 +104,20 @@ export default function Dashboard() {
             { id: 'models', label: 'Models', icon: Cpu },
             { id: 'tools', label: 'Tools', icon: Wrench },
             { id: 'actions', label: 'Actions', icon: Github },
-            { id: 'settings', label: 'Settings', icon: Activity },
           ] as const
         ).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={clsx(
-              'flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors flex-1 justify-center',
+              'flex items-center gap-2 px-3 sm:px-4 py-2 rounded text-sm font-medium transition-colors flex-1 justify-center',
               tab === id
                 ? 'bg-accent/20 text-accent'
                 : 'text-slate-500 hover:text-slate-300'
             )}
           >
-            <Icon className="w-4 h-4" />
-            {label}
+            <Icon className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
@@ -182,8 +180,6 @@ export default function Dashboard() {
           <GitHubRepoSelector />
         </div>
       )}
-
-      {tab === 'settings' && <Settings />}
     </div>
   )
 }

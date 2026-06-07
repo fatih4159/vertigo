@@ -25,6 +25,10 @@ export interface Agent {
   model_name: string
   config_json: Record<string, unknown> | null
   project_id: string | null
+  repository_url: string | null
+  repository_branch: string | null
+  workspace_path: string | null
+  workspace_file_count: number | null
   created_at: string
   updated_at: string
   live_status?: LiveStatus

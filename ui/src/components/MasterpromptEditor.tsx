@@ -65,7 +65,7 @@ export default function MasterpromptEditor({ value, onSave }: Props) {
         <span className="text-sm font-medium text-slate-300">Masterprompt</span>
         <div className="flex items-center gap-2">
           {isDirty && (
-            <span className="text-xs text-yellow-400 font-mono">unsaved changes</span>
+            <span className="hidden sm:inline text-xs text-yellow-400 font-mono">unsaved</span>
           )}
           {saved && (
             <span className="text-xs text-green-400 font-mono">saved!</span>
@@ -73,18 +73,18 @@ export default function MasterpromptEditor({ value, onSave }: Props) {
           <button
             onClick={handleReset}
             disabled={!isDirty || saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-bg-tertiary transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-bg-tertiary transition-colors disabled:opacity-40"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset
+            <span className="hidden sm:inline">Reset</span>
           </button>
           <button
             onClick={handleSave}
             disabled={!isDirty || saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-accent hover:bg-accent-hover text-white transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs bg-accent hover:bg-accent-hover text-white transition-colors disabled:opacity-40"
           >
             <Save className="w-3.5 h-3.5" />
-            {saving ? 'Saving...' : 'Save'}
+            <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save'}</span>
           </button>
         </div>
       </div>

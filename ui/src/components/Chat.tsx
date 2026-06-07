@@ -69,7 +69,7 @@ export default function Chat({ agentId: _agentId, agentName, onSend }: Props) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-slate-500 text-sm mt-8">
             <Bot className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -91,7 +91,7 @@ export default function Chat({ agentId: _agentId, agentName, onSend }: Props) {
               </div>
             )}
 
-            <div className={clsx('max-w-[80%] space-y-1', msg.role === 'user' ? 'items-end' : 'items-start')}>
+            <div className={clsx('max-w-[75%] sm:max-w-[80%] space-y-1', msg.role === 'user' ? 'items-end' : 'items-start')}>
               <div
                 className={clsx(
                   'px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap',

@@ -16,11 +16,11 @@ export default function Layout({ children, wsConnected }: Props) {
       <Sidebar />
       <div
         className={`flex flex-col flex-1 min-w-0 transition-all duration-200 ${
-          sidebarOpen ? 'ml-64' : 'ml-0'
+          sidebarOpen ? 'md:ml-64' : 'ml-0'
         }`}
       >
         <Header wsConnected={wsConnected} />
-        <main className="flex-1 overflow-auto p-4">{children}</main>
+        <main className="flex-1 overflow-auto p-2 sm:p-4">{children}</main>
       </div>
     </div>
   )
