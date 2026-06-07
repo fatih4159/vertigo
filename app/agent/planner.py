@@ -75,18 +75,18 @@ class Planner:
 Given the agent's master prompt, current state context, and conversation history,
 you must produce a JSON plan with the following structure:
 
-{
+{{
   "goal": "single clear sentence stating what the agent should achieve in this iteration",
   "rationale": "brief explanation of why this goal was chosen",
   "steps": [
-    {
+    {{
       "id": 1,
       "description": "human-readable description of this step",
       "tool": "tool_name or null if no tool needed",
-      "tool_args": {"arg1": "value1"}
-    }
+      "tool_args": {{"arg1": "value1"}}
+    }}
   ]
-}
+}}
 
 Available tools: {available_tools}
 
