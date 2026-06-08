@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/aaos.db
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/aaos.db}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:latest}
       - WORKSPACE_ROOT=/app/workspace
@@ -25,6 +25,26 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+
+  # Optional: PostgreSQL database
+  # To use: uncomment this service, set DATABASE_URL in .env:
+  #   DATABASE_URL=postgresql+asyncpg://aaos:aaos@postgres:5432/aaos
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: aaos
+  #     POSTGRES_PASSWORD: aaos
+  #     POSTGRES_DB: aaos
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U aaos"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   restart: unless-stopped
 
   # Optional: run Ollama in Docker (needs GPU passthrough for performance)
   # ollama:
@@ -46,4 +66,5 @@ volumes:
   aaos_data:
   aaos_workspace:
   aaos_logs:
+  # postgres_data:
   # ollama_data:
